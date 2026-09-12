@@ -1,0 +1,61 @@
+# Environment files
+**/.env
+**/.env.*
+!**/.env.example
+
+# Dependencies
+**/node_modules/
+
+# Build output and tool caches
+**/dist/
+**/build/
+**/out/
+**/.vite/
+**/.cache/
+**/.turbo/
+**/.next/
+**/coverage/
+
+# Runtime files and logs
+*.log
+logs/
+**/logs/
+*.pid
+*.pid.lock
+*.seed
+
+# Operating-system files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE and editor files
+.idea/
+.vscode/
+*.iml
+*.suo
+*.user
+*.userossc
+*.code-workspace
+*.swp
+*.swo
+
+# Local certificates and private keys
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+*.jks
+*.keystore
+
+# Local databases and backups
+*.db
+*.sqlite
+*.sqlite3
+*.bak
+*.backup
+*.dump
+*.sql.gz
