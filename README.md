@@ -39,3 +39,4 @@ Local full-stack MVP for a company website using React, Node.js, Express, and SQ
 
 The React app expects the API at `http://localhost:5000` by default.
 
+Git learning test - Version 2
