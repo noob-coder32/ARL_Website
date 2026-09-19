@@ -52,6 +52,12 @@ import './styles.css';
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 const imageBase = '/images';
 
+const heroPhrases = [
+  'Trusted Across India.',
+  'Built for Every Season.',
+  'Made for Generations.'
+];
+
 // Corporate Navigation Items
 const navItems = [
   { id: 'home', label: 'Home' },
@@ -436,6 +442,56 @@ function App() {
 // HOMEPAGE COMPONENT
 // ============================================================================
 function Home({ onNavigate, onSelectProduct, onOpenLightbox }) {
+  const [heroPhraseIndex, setHeroPhraseIndex] = useState(0);
+  const [heroCharacterCount, setHeroCharacterCount] = useState(0);
+  const [isHeroDeleting, setIsHeroDeleting] = useState(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(() => (
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  ));
+
+  React.useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const handleMotionPreferenceChange = (event) => setPrefersReducedMotion(event.matches);
+
+    setPrefersReducedMotion(mediaQuery.matches);
+    mediaQuery.addEventListener?.('change', handleMotionPreferenceChange);
+
+    return () => mediaQuery.removeEventListener?.('change', handleMotionPreferenceChange);
+  }, []);
+
+  React.useEffect(() => {
+    if (prefersReducedMotion) {
+      setHeroPhraseIndex(0);
+      setHeroCharacterCount(heroPhrases[0].length);
+      setIsHeroDeleting(false);
+      return undefined;
+    }
+
+    const phrase = heroPhrases[heroPhraseIndex];
+    const isPhraseComplete = heroCharacterCount === phrase.length;
+    const delay = isHeroDeleting ? 35 : isPhraseComplete ? 1800 : 65;
+    const typewriterTimer = window.setTimeout(() => {
+      if (isHeroDeleting) {
+        if (heroCharacterCount > 0) {
+          setHeroCharacterCount((count) => count - 1);
+        } else {
+          setIsHeroDeleting(false);
+          setHeroPhraseIndex((index) => (index + 1) % heroPhrases.length);
+        }
+      } else if (heroCharacterCount < phrase.length) {
+        setHeroCharacterCount((count) => count + 1);
+      } else {
+        setIsHeroDeleting(true);
+      }
+    }, delay);
+
+    return () => window.clearTimeout(typewriterTimer);
+  }, [heroPhraseIndex, heroCharacterCount, isHeroDeleting, prefersReducedMotion]);
+
+  const visibleHeroPhrase = prefersReducedMotion
+    ? heroPhrases[0]
+    : heroPhrases[heroPhraseIndex].slice(0, heroCharacterCount);
+
   return (
     <>
       {/* Hero Section */}
@@ -448,7 +504,10 @@ function Home({ onNavigate, onSelectProduct, onOpenLightbox }) {
               <span>ESTD. 1972 • Over 50 Years of Excellence</span>
             </div>
             <h1 className="hero-title">
-              Engineered for Strength. <span>Trusted Across Northeast India.</span>
+              Engineered for Strength.{' '}
+              <span className="hero-rotating-text" aria-live="polite">
+                {visibleHeroPhrase}
+              </span>
             </h1>
             <p className="hero-desc">
               Assam Roofing Limited is the pioneer in high-grade metal roofing sheets,
@@ -2089,15 +2148,14 @@ function AdminSubmissions({ onLogout }) {
     }
   };
 
-  const handleMailtoClient = () => {
-    if (!selectedSub) return;
+  const getMailtoUrl = () => {
+    if (!selectedSub?.Email) return '#';
     const to = selectedSub.Email;
     const subject = encodeURIComponent(`Re: ${selectedSub.Subject || 'Assam Roofing Limited Inquiry'}`);
     const signoff = `\n\nWarm regards,\n${staffSender}\nAssam Roofing Limited\nBonda Narangi, Guwahati, Assam 781026\nWebsite: assamroofing.com`;
     const fullBody = encodeURIComponent(replyText + signoff);
 
-    handleUpdateStatus(selectedSub.Id, 'Replied');
-    window.location.href = `mailto:${to}?subject=${subject}&body=${fullBody}`;
+    return `mailto:${to}?subject=${subject}&body=${fullBody}`;
   };
 
   const applyTemplate = (templateType) => {
@@ -2662,15 +2720,14 @@ function AdminSubmissions({ onLogout }) {
                 {/* Reply Actions */}
                 <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                   {/* Phase 1 Button: Mailto Client */}
-                  <button
-                    type="button"
+                  <a
                     className="btn btn-secondary"
-                    onClick={handleMailtoClient}
+                    href={getMailtoUrl()}
                     style={{ flex: '1 1 200px' }}
                   >
                     <ExternalLink size={15} />
                     <span>Open in Outlook / Gmail (mailto)</span>
-                  </button>
+                  </a>
 
                   {/* Phase 2 Button: Cloud API Direct Send */}
                   <button

@@ -511,6 +511,36 @@ h1, h2, h3, h4, h5, h6 {
   -webkit-text-fill-color: transparent;
 }
 
+.hero-rotating-text {
+  display: inline-block;
+  min-width: min(30ch, 100%);
+  max-width: 100%;
+  vertical-align: bottom;
+}
+
+.hero-rotating-text::after {
+  content: '';
+  display: inline-block;
+  width: 0.08em;
+  height: 0.9em;
+  margin-left: 0.12em;
+  vertical-align: -0.08em;
+  background: #34d399;
+  -webkit-text-fill-color: initial;
+  animation: hero-caret-blink 900ms steps(1, end) infinite;
+}
+
+@keyframes hero-caret-blink {
+  0%, 45% { opacity: 1; }
+  46%, 100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-rotating-text::after {
+    animation: none;
+  }
+}
+
 .hero-desc {
   font-size: clamp(1.02rem, 1.4vw, 1.2rem);
   line-height: 1.6;
