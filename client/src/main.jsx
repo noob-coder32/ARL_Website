@@ -1521,6 +1521,22 @@ function Contact({ prefilledInquiry }) {
   });
 
   const [status, setStatus] = useState({ type: 'idle', message: '' });
+  const [toast, setToast] = useState(null);
+
+  React.useEffect(() => {
+    if (status.type !== 'success' || !status.message) {
+      if (status.type !== 'success') setToast(null);
+      return undefined;
+    }
+
+    setToast(status.message);
+    const dismissTimer = window.setTimeout(() => {
+      setStatus({ type: 'idle', message: '' });
+      setToast(null);
+    }, 5000);
+
+    return () => window.clearTimeout(dismissTimer);
+  }, [status]);
 
   React.useEffect(() => {
     if (prefilledInquiry) {
@@ -1578,6 +1594,12 @@ function Contact({ prefilledInquiry }) {
 
   return (
     <div className="section">
+      {toast && (
+        <div className="submission-toast" role="status" aria-live="polite">
+          <CheckCircle2 size={20} aria-hidden="true" />
+          <span>{toast}</span>
+        </div>
+      )}
       <div className="container">
         <div className="section-header">
           <div className="section-eyebrow">
