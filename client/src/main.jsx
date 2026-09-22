@@ -72,6 +72,13 @@ const navItems = [
   { id: 'login', label: 'Staff Login' }
 ];
 
+const validPageIds = new Set([...navItems.map((item) => item.id), 'admin']);
+
+const getPageFromHash = () => {
+  const page = window.location.hash.slice(1);
+  return validPageIds.has(page) ? page : 'home';
+};
+
 // Product Data with Technical Specifications
 const products = [
   {
@@ -257,7 +264,7 @@ const faqs = [
 // MAIN APPLICATION COMPONENT
 // ============================================================================
 function App() {
-  const [activePage, setActivePage] = useState('home');
+  const [activePage, setActivePage] = useState(getPageFromHash);
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [lightboxImage, setLightboxImage] = useState(null);
@@ -266,8 +273,20 @@ function App() {
     return !!localStorage.getItem('arl_auth_token');
   });
 
+  React.useEffect(() => {
+    const handleHashChange = () => {
+      setActivePage(getPageFromHash());
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
   const navigate = (page, inquiryData = null) => {
     setActivePage(page);
+    if (window.location.hash !== `#${page}`) {
+      window.location.hash = page;
+    }
     setMenuOpen(false);
     if (inquiryData) {
       setPrefilledInquiry(inquiryData);
@@ -278,6 +297,7 @@ function App() {
   const handleStaffLoginSuccess = (email) => {
     setIsStaffAuthenticated(true);
     setActivePage('admin');
+    window.location.hash = 'admin';
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -288,6 +308,7 @@ function App() {
     localStorage.removeItem('arl_staff_name');
     localStorage.removeItem('arl_staff_role');
     setActivePage('login');
+    window.location.hash = 'login';
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
