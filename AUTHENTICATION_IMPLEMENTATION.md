@@ -46,6 +46,8 @@ The `StaffUsers` table stores staff email addresses, bcrypt password hashes, nam
 
 The migration creates the schema and email lookup index. Staff accounts and password hashes must be provisioned separately through a secure operational process; default credentials are intentionally not stored in source control.
 
+Administrators can provision staff accounts from the authenticated staff desk. The create-user request accepts a plaintext password only in the HTTPS request, hashes it immediately with bcrypt on the server, and never stores, logs, or returns the plaintext password. The stored password hash cannot be used to recover the original password.
+
 ## Authentication Flow
 
 1. A staff member enters an email address and password in the frontend.
@@ -74,6 +76,25 @@ POST /api/auth/verify
 Header: Authorization: Bearer <token>
 Response: { valid, user }
 ```
+
+### Staff User Management
+
+These endpoints require a valid JWT for a user with the `admin` role:
+
+```text
+GET /api/auth/users
+Response: { users: [{ Id, Email, FullName, Role, Department, IsActive, CreatedAt, LastLoginAt }] }
+
+POST /api/auth/users
+Body: { email, fullName, role, department, password }
+Response: { message, user: { Id, Email, FullName, Role, Department, IsActive, CreatedAt, LastLoginAt } }
+
+PATCH /api/auth/users/:id/password
+Body: { password }
+Response: { message }
+```
+
+A duplicate email returns `409`. Password resets are administrator-initiated: the administrator provides a new temporary password, and the previous password cannot be recovered.
 
 ### Protected Endpoints
 

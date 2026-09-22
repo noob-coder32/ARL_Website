@@ -2018,6 +2018,19 @@ function AdminSubmissions({ onLogout }) {
   const [isSubmittingReply, setIsSubmittingReply] = useState(false);
   const [replyFeedback, setReplyFeedback] = useState(null);
   const [statusUpdatingId, setStatusUpdatingId] = useState(null);
+  const [staffUsers, setStaffUsers] = useState([]);
+  const [staffUsersLoading, setStaffUsersLoading] = useState(false);
+  const [staffUserFeedback, setStaffUserFeedback] = useState(null);
+  const [newStaffUser, setNewStaffUser] = useState({
+    email: '',
+    fullName: '',
+    role: 'staff',
+    department: '',
+    password: '',
+  });
+  const [resetUserId, setResetUserId] = useState(null);
+  const [resetPassword, setResetPassword] = useState('');
+  const isAdmin = localStorage.getItem('arl_staff_role') === 'admin';
 
   // Get JWT token from localStorage
   const getAuthHeaders = () => {
@@ -2030,6 +2043,30 @@ function AdminSubmissions({ onLogout }) {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
     };
+  };
+
+  const fetchStaffUsers = async () => {
+    if (!isAdmin) return;
+
+    setStaffUsersLoading(true);
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/auth/users`, {
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+
+      if (res.status === 401) {
+        onLogout();
+        return;
+      }
+      if (!res.ok) throw new Error(data.message || 'Could not retrieve staff users.');
+
+      setStaffUsers(data.users || []);
+    } catch (err) {
+      setStaffUserFeedback({ type: 'error', text: err.message });
+    } finally {
+      setStaffUsersLoading(false);
+    }
   };
 
   const fetchSubmissions = async () => {
@@ -2063,7 +2100,61 @@ function AdminSubmissions({ onLogout }) {
 
   React.useEffect(() => {
     fetchSubmissions();
+    fetchStaffUsers();
   }, []);
+
+  const handleCreateStaffUser = async (event) => {
+    event.preventDefault();
+    setStaffUserFeedback(null);
+
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/auth/users`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(newStaffUser),
+      });
+      const data = await res.json();
+
+      if (res.status === 401) {
+        onLogout();
+        return;
+      }
+      if (!res.ok) throw new Error(data.message || 'Could not create staff user.');
+
+      setStaffUserFeedback({ type: 'success', text: data.message });
+      setNewStaffUser({ email: '', fullName: '', role: 'staff', department: '', password: '' });
+      fetchStaffUsers();
+    } catch (err) {
+      setStaffUserFeedback({ type: 'error', text: err.message });
+    }
+  };
+
+  const handleResetStaffPassword = async (event) => {
+    event.preventDefault();
+    if (!resetUserId) return;
+    setStaffUserFeedback(null);
+
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/auth/users/${resetUserId}/password`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ password: resetPassword }),
+      });
+      const data = await res.json();
+
+      if (res.status === 401) {
+        onLogout();
+        return;
+      }
+      if (!res.ok) throw new Error(data.message || 'Could not reset staff password.');
+
+      setStaffUserFeedback({ type: 'success', text: data.message });
+      setResetUserId(null);
+      setResetPassword('');
+    } catch (err) {
+      setStaffUserFeedback({ type: 'error', text: err.message });
+    }
+  };
 
   const handleUpdateStatus = async (id, newStatus) => {
     setStatusUpdatingId(id);
@@ -2277,6 +2368,118 @@ function AdminSubmissions({ onLogout }) {
             </div>
           </div>
         </div>
+
+        {isAdmin && (
+          <section style={{
+            background: 'var(--surface-card)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: '12px',
+            padding: '22px',
+            marginBottom: '24px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '18px' }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '1.2rem' }}>Staff User Management</h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '6px 0 0' }}>
+                  Create accounts and reset passwords. Passwords are hashed immediately and cannot be recovered.
+                </p>
+              </div>
+              <button className="btn btn-secondary btn-sm" onClick={fetchStaffUsers} disabled={staffUsersLoading}>
+                <RefreshCw size={15} className={staffUsersLoading ? 'spinning' : ''} />
+                <span>Refresh Users</span>
+              </button>
+            </div>
+
+            {staffUserFeedback && (
+              <div style={{
+                background: staffUserFeedback.type === 'success' ? 'rgba(13,112,84,0.1)' : 'rgba(239,68,68,0.1)',
+                border: `1px solid ${staffUserFeedback.type === 'success' ? 'rgba(13,112,84,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                color: staffUserFeedback.type === 'success' ? '#0d7054' : '#dc2626',
+                padding: '10px 14px',
+                borderRadius: '8px',
+                fontSize: '0.85rem',
+                marginBottom: '16px'
+              }}>
+                {staffUserFeedback.text}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateStaffUser} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', alignItems: 'end', marginBottom: '22px' }}>
+              <div className="form-group">
+                <label>Full Name *</label>
+                <input className="form-control" value={newStaffUser.fullName} onChange={(event) => setNewStaffUser({ ...newStaffUser, fullName: event.target.value })} required />
+              </div>
+              <div className="form-group">
+                <label>Email *</label>
+                <input type="email" className="form-control" value={newStaffUser.email} onChange={(event) => setNewStaffUser({ ...newStaffUser, email: event.target.value })} required />
+              </div>
+              <div className="form-group">
+                <label>Role *</label>
+                <select className="form-control" value={newStaffUser.role} onChange={(event) => setNewStaffUser({ ...newStaffUser, role: event.target.value })}>
+                  <option value="staff">Staff</option>
+                  <option value="manager">Manager</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Department</label>
+                <input className="form-control" value={newStaffUser.department} onChange={(event) => setNewStaffUser({ ...newStaffUser, department: event.target.value })} />
+              </div>
+              <div className="form-group">
+                <label>Temporary Password *</label>
+                <input type="password" className="form-control" value={newStaffUser.password} onChange={(event) => setNewStaffUser({ ...newStaffUser, password: event.target.value })} required />
+              </div>
+              <button className="btn btn-primary" type="submit">
+                <UserCheck size={15} />
+                <span>Create User</span>
+              </button>
+            </form>
+
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                <thead>
+                  <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border-subtle)' }}>
+                    <th style={{ padding: '10px 8px' }}>Name</th>
+                    <th style={{ padding: '10px 8px' }}>Email</th>
+                    <th style={{ padding: '10px 8px' }}>Role</th>
+                    <th style={{ padding: '10px 8px' }}>Status</th>
+                    <th style={{ padding: '10px 8px' }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {staffUsers.map((user) => (
+                    <tr key={user.Id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                      <td style={{ padding: '10px 8px' }}>{user.FullName}</td>
+                      <td style={{ padding: '10px 8px' }}>{user.Email}</td>
+                      <td style={{ padding: '10px 8px', textTransform: 'capitalize' }}>{user.Role}</td>
+                      <td style={{ padding: '10px 8px' }}>{user.IsActive ? 'Active' : 'Inactive'}</td>
+                      <td style={{ padding: '10px 8px' }}>
+                        <button className="btn btn-ghost btn-sm" type="button" onClick={() => { setResetUserId(user.Id); setResetPassword(''); }}>
+                          <KeyRound size={14} />
+                          <span>Reset Password</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {!staffUsersLoading && staffUsers.length === 0 && (
+                    <tr><td colSpan="5" style={{ padding: '16px 8px', color: 'var(--text-muted)' }}>No staff users found.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {resetUserId && (
+              <form onSubmit={handleResetStaffPassword} style={{ display: 'flex', gap: '12px', alignItems: 'end', flexWrap: 'wrap', marginTop: '18px', paddingTop: '18px', borderTop: '1px solid var(--border-subtle)' }}>
+                <div className="form-group" style={{ minWidth: '240px' }}>
+                  <label>New Temporary Password *</label>
+                  <input type="password" className="form-control" value={resetPassword} onChange={(event) => setResetPassword(event.target.value)} required autoFocus />
+                </div>
+                <button className="btn btn-primary" type="submit"><KeyRound size={15} /><span>Save New Password</span></button>
+                <button className="btn btn-ghost" type="button" onClick={() => { setResetUserId(null); setResetPassword(''); }}>Cancel</button>
+              </form>
+            )}
+          </section>
+        )}
 
         {/* Filter and Search Bar */}
         <div style={{

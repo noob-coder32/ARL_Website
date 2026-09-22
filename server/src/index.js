@@ -4,7 +4,7 @@ import express from 'express';
 import nodemailer from 'nodemailer';
 import { getPool, sql } from './db.js';
 import { validateSubmission } from './validation.js';
-import { authMiddleware, generateToken, verifyPassword } from './auth.js';
+import { authMiddleware, generateToken, hashPassword, requireRole, verifyPassword } from './auth.js';
 
 const app = express();
 const port = Number(process.env.PORT || 5000);
@@ -92,6 +92,100 @@ app.post('/api/auth/login', async (req, res) => {
 
 app.post('/api/auth/verify', authMiddleware, (req, res) => {
   res.json({ valid: true, user: req.user });
+});
+
+const validStaffRoles = ['admin', 'manager', 'staff'];
+
+app.get('/api/auth/users', authMiddleware, requireRole('admin'), async (_req, res) => {
+  try {
+    const pool = await getPool();
+    const result = await pool.request().query(`
+      SELECT Id, Email, FullName, Role, Department, IsActive, CreatedAt, LastLoginAt
+      FROM dbo.StaffUsers
+      ORDER BY FullName, Email;
+    `);
+
+    return res.json({ users: result.recordset });
+  } catch (error) {
+    console.error('Staff user list error:', error);
+    return res.status(500).json({ message: 'Could not retrieve staff users.' });
+  }
+});
+
+app.post('/api/auth/users', authMiddleware, requireRole('admin'), async (req, res) => {
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const fullName = typeof req.body?.fullName === 'string' ? req.body.fullName.trim() : '';
+  const department = typeof req.body?.department === 'string' ? req.body.department.trim() : '';
+  const role = typeof req.body?.role === 'string' ? req.body.role.trim().toLowerCase() : 'staff';
+  const password = typeof req.body?.password === 'string' ? req.body.password : '';
+
+  if (!email || !fullName || !password) {
+    return res.status(400).json({ message: 'Email, full name, and password are required.' });
+  }
+
+  if (!validStaffRoles.includes(role)) {
+    return res.status(400).json({ message: 'Role must be admin, manager, or staff.' });
+  }
+
+  try {
+    const passwordHash = await hashPassword(password);
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('Email', sql.NVarChar(180), email)
+      .input('PasswordHash', sql.NVarChar(sql.MAX), passwordHash)
+      .input('FullName', sql.NVarChar(120), fullName)
+      .input('Role', sql.NVarChar(30), role)
+      .input('Department', sql.NVarChar(100), department || null)
+      .query(`
+        INSERT INTO dbo.StaffUsers (Email, PasswordHash, FullName, Role, Department)
+        OUTPUT INSERTED.Id, INSERTED.Email, INSERTED.FullName, INSERTED.Role,
+               INSERTED.Department, INSERTED.IsActive, INSERTED.CreatedAt, INSERTED.LastLoginAt
+        VALUES (@Email, @PasswordHash, @FullName, @Role, @Department);
+      `);
+
+    return res.status(201).json({
+      message: 'Staff user created successfully.',
+      user: result.recordset[0]
+    });
+  } catch (error) {
+    if (error.number === 2627 || error.number === 2601) {
+      return res.status(409).json({ message: 'A staff user with that email already exists.' });
+    }
+
+    console.error('Staff user creation error:', error);
+    return res.status(500).json({ message: 'Could not create staff user.' });
+  }
+});
+
+app.patch('/api/auth/users/:id/password', authMiddleware, requireRole('admin'), async (req, res) => {
+  const userId = Number.parseInt(req.params.id, 10);
+  const password = typeof req.body?.password === 'string' ? req.body.password : '';
+
+  if (!Number.isInteger(userId) || userId < 1) {
+    return res.status(400).json({ message: 'A valid staff user ID is required.' });
+  }
+
+  try {
+    const passwordHash = await hashPassword(password);
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('Id', sql.Int, userId)
+      .input('PasswordHash', sql.NVarChar(sql.MAX), passwordHash)
+      .query(`
+        UPDATE dbo.StaffUsers
+        SET PasswordHash = @PasswordHash
+        WHERE Id = @Id;
+      `);
+
+    if (!result.rowsAffected[0]) {
+      return res.status(404).json({ message: 'Staff user not found.' });
+    }
+
+    return res.json({ message: 'Staff user password reset successfully.' });
+  } catch (error) {
+    console.error('Staff password reset error:', error);
+    return res.status(500).json({ message: 'Could not reset staff user password.' });
+  }
 });
 
 app.post('/api/submissions', async (req, res) => {
