@@ -1571,6 +1571,19 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
 }
 
+.inquiry-detail-overlay {
+  --inquiry-modal-gutter: clamp(16px, 4vw, 48px);
+  padding: var(--inquiry-modal-gutter);
+}
+
+.inquiry-detail-content {
+  width: min(100%, 1040px);
+  max-width: 1040px;
+  max-height: min(92vh, calc(100vh - var(--inquiry-modal-gutter) - var(--inquiry-modal-gutter)));
+  overflow-y: auto;
+  padding: clamp(18px, 3vw, 32px);
+}
+
 .lightbox-image-wrap img {
   width: 100%;
   max-height: 60vh;

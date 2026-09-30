@@ -2732,11 +2732,11 @@ function AdminSubmissions({ onLogout }) {
 
         {/* View & Reply Modal */}
         {selectedSub && (
-          <div className="lightbox-modal" onClick={() => setSelectedSub(null)}>
+          <div className="lightbox-modal inquiry-detail-overlay" onClick={() => setSelectedSub(null)}>
             <div
-              className="lightbox-content"
+              className="lightbox-content inquiry-detail-content"
               onClick={(e) => e.stopPropagation()}
-              style={{ maxWidth: '780px', maxHeight: '90vh', overflowY: 'auto', textAlign: 'left' }}
+              style={{ textAlign: 'left' }}
             >
               {/* Modal Header */}
               <div style={{
