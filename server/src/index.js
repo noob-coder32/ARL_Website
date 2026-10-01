@@ -301,19 +301,17 @@ app.post('/api/submissions/:id/reply', authMiddleware, async (req, res) => {
 
     let targetEmail = recipientEmail;
     let targetSubject = subject;
-    let customerName = 'Valued Customer';
 
     if (!targetEmail) {
       const subResult = await pool.request()
         .input('Id', sql.Int, Number(id))
-        .query(`SELECT Name, Email, Subject FROM dbo.ClientSubmissions WHERE Id = @Id`);
+        .query(`SELECT Email, Subject FROM dbo.ClientSubmissions WHERE Id = @Id`);
 
       if (subResult.recordset.length === 0) {
         return res.status(404).json({ message: 'Submission not found.' });
       }
       targetEmail = subResult.recordset[0].Email;
       targetSubject = subResult.recordset[0].Subject;
-      customerName = subResult.recordset[0].Name;
     }
 
     let emailSent = false;
@@ -335,11 +333,10 @@ app.post('/api/submissions/:id/reply', authMiddleware, async (req, res) => {
           from: process.env.SMTP_FROM || `"Assam Roofing Limited" <${process.env.SMTP_USER}>`,
           to: targetEmail,
           subject: `Re: ${targetSubject || 'Inquiry Response - Assam Roofing Limited'}`,
-          text: `Dear ${customerName},\n\n${replyText}\n\nWarm regards,\n${staffName || 'Customer Support Team'}\nAssam Roofing Limited\nBonda Narangi, Guwahati, Assam 781026\nWebsite: assamroofing.com`,
+          text: `${replyText}\n\nWarm regards,\n${staffName || 'Customer Support Team'}\nAssam Roofing Limited\nBonda Narangi, Guwahati, Assam 781026\nWebsite: assamroofing.com`,
           html: `
             <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1e293b; max-width: 600px;">
               <h3 style="color: #0d7054; border-bottom: 2px solid #0d7054; padding-bottom: 8px;">Assam Roofing Limited</h3>
-              <p>Dear <strong>${customerName}</strong>,</p>
               <div style="background: #f8fafc; border-left: 4px solid #0d7054; padding: 14px 18px; margin: 16px 0; border-radius: 4px;">
                 ${replyText.replace(/\n/g, '<br/>')}
               </div>
