@@ -19,22 +19,50 @@ import { authMiddleware, generateToken, hashPassword, requireRole, verifyPasswor
 const app = express();
 const port = Number(process.env.PORT || 5000);
 
-const allowedOrigins = [
+const normalizeOrigin = (url) => (url ? url.trim().replace(/\/+$/, '') : '');
+
+const envOrigins = [
   process.env.CLIENT_ORIGIN,
   process.env.FRONTEND_URL,
+  process.env.ALLOWED_ORIGINS,
+]
+  .filter(Boolean)
+  .flatMap((val) => val.split(',').map(normalizeOrigin));
+
+const defaultOrigins = [
+  'https://arl-frontend.netlify.app',
   'http://192.168.1.29:5177',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
-].filter(Boolean);
+].map(normalizeOrigin);
+
+const allowedOrigins = new Set([...envOrigins, ...defaultOrigins]);
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin) return callback(null, true);
+    const normalized = normalizeOrigin(origin);
+    
+    let isAllowed = allowedOrigins.has(normalized);
+    if (!isAllowed) {
+      try {
+        const { hostname } = new URL(origin);
+        if (hostname.endsWith('.netlify.app')) {
+          isAllowed = true;
+        }
+      } catch {
+        // invalid url
+      }
+    }
+
+    if (isAllowed) {
       return callback(null, true);
     }
-    return callback(new Error('Origin is not allowed by CORS'));
+    return callback(new Error(`Origin ${origin} is not allowed by CORS`));
   },
   credentials: true,
+  methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json());
 
