@@ -21,41 +21,25 @@ const port = Number(process.env.PORT || 5000);
 
 const normalizeOrigin = (url) => (url ? url.trim().replace(/\/+$/, '') : '');
 
-const envOrigins = [
-  process.env.CLIENT_ORIGIN,
-  process.env.FRONTEND_URL,
-  process.env.ALLOWED_ORIGINS,
-]
-  .filter(Boolean)
-  .flatMap((val) => val.split(',').map(normalizeOrigin));
-
-const defaultOrigins = [
-  'https://arl-frontend.netlify.app',
-  'http://192.168.1.29:5177',
-  'http://localhost:5173',
-  'http://127.0.0.1:5173',
-].map(normalizeOrigin);
-
-const allowedOrigins = new Set([...envOrigins, ...defaultOrigins]);
+// Load allowed origins strictly from environment variables (supports comma-separated list)
+const allowedOrigins = new Set(
+  [
+    process.env.CLIENT_ORIGIN,
+    process.env.FRONTEND_URL,
+    process.env.ALLOWED_ORIGINS,
+  ]
+    .filter(Boolean)
+    .flatMap((val) => val.split(',').map(normalizeOrigin))
+    .filter(Boolean)
+);
 
 app.use(cors({
   origin: (origin, callback) => {
+    // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
     if (!origin) return callback(null, true);
-    const normalized = normalizeOrigin(origin);
-    
-    let isAllowed = allowedOrigins.has(normalized);
-    if (!isAllowed) {
-      try {
-        const { hostname } = new URL(origin);
-        if (hostname.endsWith('.netlify.app')) {
-          isAllowed = true;
-        }
-      } catch {
-        // invalid url
-      }
-    }
 
-    if (isAllowed) {
+    const normalized = normalizeOrigin(origin);
+    if (allowedOrigins.has(normalized)) {
       return callback(null, true);
     }
     return callback(new Error(`Origin ${origin} is not allowed by CORS`));
