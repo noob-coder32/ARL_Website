@@ -1,65 +1,68 @@
 /**
- * Database Migration Runner
- * Executes SQL scripts to set up StaffUsers table
- * Run with: node migrate.js
+ * PostgreSQL Database Migration Runner
+ * Executes SQL scripts to set up StaffUsers and ClientSubmissions tables
+ * Run with: npm run migrate
  */
 
 import 'dotenv/config';
-import sql from 'mssql';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { getPool } from './src/db.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-// Database configuration from .env
-const dbConfig = {
-  server: process.env.DB_SERVER,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  options: {
-    encrypt: process.env.DB_ENCRYPT === 'true',
-    trustServerCertificate: process.env.DB_TRUST_SERVER_CERTIFICATE === 'true',
-  }
-};
 
 async function runMigration() {
   let pool;
   try {
-    console.log('🔄 Connecting to database...');
-    pool = await sql.connect(dbConfig);
+    console.log('🔄 Connecting to PostgreSQL database...');
+    pool = await getPool();
     console.log('✅ Connected to database');
 
-    // Read SQL migration file
-    const sqlPath = path.join(__dirname, '../database/create_staff_users_table.sql');
-    const sqlScript = fs.readFileSync(sqlPath, 'utf8');
+    const migrationFiles = [
+      'create_staff_users_table.sql',
+      'create_submissions_table.sql'
+    ];
 
-    console.log('🔄 Running database migration...');
-    // Execute the SQL script
-    await pool.request().batch(sqlScript);
-    console.log('✅ Database migration completed successfully!');
+    for (const file of migrationFiles) {
+      const sqlPath = path.join(__dirname, '../database', file);
+      if (fs.existsSync(sqlPath)) {
+        console.log(`🔄 Running migration: ${file}...`);
+        const sqlScript = fs.readFileSync(sqlPath, 'utf8');
+        await pool.query(sqlScript);
+        console.log(`✅ Applied ${file}`);
+      } else {
+        console.warn(`⚠️ Migration file not found: ${sqlPath}`);
+      }
+    }
 
     // Verify tables were created
-    const verification = await pool.request().query(`
-      SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES 
-      WHERE TABLE_SCHEMA = 'dbo' AND TABLE_NAME IN ('StaffUsers', 'ClientSubmissions')
+    const verification = await pool.query(`
+      SELECT table_name
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+        AND table_name IN ('StaffUsers', 'ClientSubmissions')
+      ORDER BY table_name;
     `);
-    
-    console.log('✅ Verified tables:');
-    verification.recordset.forEach(row => {
-      console.log(`   - dbo.${row.TABLE_NAME}`);
-    });
 
-    console.log('\n✅ Migration completed successfully!');
+    console.log('\n✅ Verified tables in database:');
+    if (verification.rows.length === 0) {
+      console.log('   (No matching tables found - check schema permissions)');
+    } else {
+      verification.rows.forEach((row) => {
+        console.log(`   - public.${row.table_name}`);
+      });
+    }
+
+    console.log('\n✅ PostgreSQL migration completed successfully!');
     console.log('Staff accounts must be provisioned separately using the secure operations process.');
-    
+
   } catch (error) {
     console.error('❌ Migration failed:', error.message);
     process.exit(1);
   } finally {
     if (pool) {
-      await pool.close();
+      await pool.end();
       console.log('\n🔌 Database connection closed');
     }
   }
