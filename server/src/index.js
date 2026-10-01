@@ -1,4 +1,14 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const envPostgresPath = path.resolve(__dirname, '../.env.postgres');
+if (fs.existsSync(envPostgresPath)) {
+  dotenv.config({ path: envPostgresPath });
+}
+dotenv.config();
 import cors from 'cors';
 import express from 'express';
 import nodemailer from 'nodemailer';
