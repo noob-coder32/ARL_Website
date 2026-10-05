@@ -332,6 +332,9 @@ app.post('/api/submissions/:id/reply', authMiddleware, async (req, res) => {
           host: process.env.SMTP_HOST || 'smtp.gmail.com',
           port: Number(process.env.SMTP_PORT || 587),
           secure: process.env.SMTP_SECURE === 'true',
+          // Render may resolve SMTP hosts to IPv6 even when IPv6 routing is unavailable.
+          // Force IPv4 so the SMTP connection can reach Gmail successfully.
+          family: 4,
           auth: {
             user: process.env.SMTP_USER,
             pass: process.env.SMTP_PASS,
