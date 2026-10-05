@@ -22,7 +22,7 @@ import { getPool } from './db.js';
 import { validateSubmission } from './validation.js';
 import { authMiddleware, generateToken, hashPassword, requireRole, verifyPassword } from './auth.js';
 
-const app = express();
+const app = express();  
 const port = Number(process.env.PORT || 5000);
 
 const normalizeOrigin = (url) => (url ? url.trim().replace(/\/+$/, '') : '');
@@ -334,13 +334,31 @@ app.post('/api/submissions/:id/reply', authMiddleware, async (req, res) => {
 
     if (process.env.SMTP_USER && process.env.SMTP_PASS) {
       try {
+        const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com';
+        const smtpPort = Number(process.env.SMTP_PORT || 587);
+        const isSecure = process.env.SMTP_SECURE === 'true' || smtpPort === 465;
+
+        // Render and some cloud hosts do not have IPv6 routing configured.
+        // Explicitly pre-resolve to an IPv4 address to avoid Nodemailer choosing an unreachable IPv6 address.
+        let resolvedHost = smtpHost;
+        try {
+          const lookupResult = await dns.promises.lookup(smtpHost, { family: 4 });
+          if (lookupResult && lookupResult.address) {
+            resolvedHost = lookupResult.address;
+          }
+        } catch (dnsErr) {
+          console.warn(`Could not force IPv4 lookup for ${smtpHost}, falling back to original host:`, dnsErr.message);
+        }
+
         const transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST || 'smtp.gmail.com',
-          port: Number(process.env.SMTP_PORT || 587),
-          secure: process.env.SMTP_SECURE === 'true',
-          // Render may resolve SMTP hosts to IPv6 even when IPv6 routing is unavailable.
-          // Force IPv4 so the SMTP connection can reach Gmail successfully.
-          family: 4,
+          host: resolvedHost,
+          port: smtpPort,
+          secure: isSecure,
+          connectionTimeout: 10000,
+          greetingTimeout: 10000,
+          tls: {
+            servername: smtpHost, // Preserve SNI for SSL/TLS verification when host is an IP
+          },
           auth: {
             user: process.env.SMTP_USER,
             pass: process.env.SMTP_PASS,
