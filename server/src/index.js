@@ -332,7 +332,56 @@ app.post('/api/submissions/:id/reply', authMiddleware, async (req, res) => {
     let emailSent = false;
     let emailError = null;
 
-    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+    const emailSubject = `Re: ${targetSubject || 'Inquiry Response - Assam Roofing Limited'}`;
+    const emailText = `${replyText}\n\nWarm regards,\n${staffName || 'Customer Support Team'}\nAssam Roofing Limited\nBonda Narangi, Guwahati, Assam 781026\nWebsite: assamroofing.com`;
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1e293b; max-width: 600px;">
+        <h3 style="color: #0d7054; border-bottom: 2px solid #0d7054; padding-bottom: 8px;">Assam Roofing Limited</h3>
+        <div style="background: #f8fafc; border-left: 4px solid #0d7054; padding: 14px 18px; margin: 16px 0; border-radius: 4px;">
+          ${replyText.replace(/\n/g, '<br/>')}
+        </div>
+        <p style="margin-top: 24px; font-size: 0.9rem; color: #64748b;">
+          Warm regards,<br/>
+          <strong>${staffName || 'Customer Support Team'}</strong><br/>
+          Assam Roofing Limited<br/>
+          Bonda Narangi, Guwahati, Assam 781026
+        </p>
+      </div>
+    `;
+
+    // Priority 1: Use Resend HTTPS API if RESEND_API_KEY is configured (works on Render, Vercel, AWS without SMTP port restrictions)
+    if (process.env.RESEND_API_KEY) {
+      try {
+        const fromAddress = process.env.RESEND_FROM || process.env.SMTP_FROM || 'Assam Roofing Limited <onboarding@resend.dev>';
+        const resendRes = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.RESEND_API_KEY.trim()}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: fromAddress,
+            to: [targetEmail],
+            subject: emailSubject,
+            text: emailText,
+            html: emailHtml,
+          }),
+        });
+
+        const resendData = await resendRes.json();
+        if (resendRes.ok) {
+          emailSent = true;
+        } else {
+          throw new Error(resendData?.message || `Resend API returned status ${resendRes.status}`);
+        }
+      } catch (resendErr) {
+        console.error('Resend API send error:', resendErr);
+        emailError = `Resend error: ${resendErr.message}`;
+      }
+    }
+
+    // Priority 2: Fallback to SMTP if Resend wasn't configured or failed, and SMTP credentials exist
+    if (!emailSent && process.env.SMTP_USER && process.env.SMTP_PASS) {
       try {
         const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com';
         const smtpPort = Number(process.env.SMTP_PORT || 587);
@@ -368,27 +417,15 @@ app.post('/api/submissions/:id/reply', authMiddleware, async (req, res) => {
         await transporter.sendMail({
           from: process.env.SMTP_FROM || `"Assam Roofing Limited" <${process.env.SMTP_USER}>`,
           to: targetEmail,
-          subject: `Re: ${targetSubject || 'Inquiry Response - Assam Roofing Limited'}`,
-          text: `${replyText}\n\nWarm regards,\n${staffName || 'Customer Support Team'}\nAssam Roofing Limited\nBonda Narangi, Guwahati, Assam 781026\nWebsite: assamroofing.com`,
-          html: `
-            <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1e293b; max-width: 600px;">
-              <h3 style="color: #0d7054; border-bottom: 2px solid #0d7054; padding-bottom: 8px;">Assam Roofing Limited</h3>
-              <div style="background: #f8fafc; border-left: 4px solid #0d7054; padding: 14px 18px; margin: 16px 0; border-radius: 4px;">
-                ${replyText.replace(/\n/g, '<br/>')}
-              </div>
-              <p style="margin-top: 24px; font-size: 0.9rem; color: #64748b;">
-                Warm regards,<br/>
-                <strong>${staffName || 'Customer Support Team'}</strong><br/>
-                Assam Roofing Limited<br/>
-                Bonda Narangi, Guwahati, Assam 781026
-              </p>
-            </div>
-          `,
+          subject: emailSubject,
+          text: emailText,
+          html: emailHtml,
         });
         emailSent = true;
+        emailError = null;
       } catch (err) {
         console.error('SMTP send error:', err);
-        emailError = err.message;
+        emailError = emailError ? `${emailError} | SMTP error: ${err.message}` : err.message;
       }
     }
 
