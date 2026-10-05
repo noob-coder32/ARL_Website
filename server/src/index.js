@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import dns from 'dns';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -9,6 +10,11 @@ if (fs.existsSync(envPostgresPath)) {
   dotenv.config({ path: envPostgresPath });
 }
 dotenv.config();
+
+// Render environments may resolve SMTP hosts to IPv6 without having IPv6 routing.
+// Prefer IPv4 for all outbound DNS lookups, including the SMTP connection.
+dns.setDefaultResultOrder('ipv4first');
+
 import cors from 'cors';
 import express from 'express';
 import nodemailer from 'nodemailer';
