@@ -270,7 +270,14 @@ function App() {
   const [lightboxImage, setLightboxImage] = useState(null);
   const [prefilledInquiry, setPrefilledInquiry] = useState(null);
   const [isStaffAuthenticated, setIsStaffAuthenticated] = useState(() => {
-    return !!localStorage.getItem('arl_auth_token');
+    // Clean up any legacy localStorage tokens if present
+    if (localStorage.getItem('arl_auth_token')) {
+      localStorage.removeItem('arl_auth_token');
+      localStorage.removeItem('arl_staff_email');
+      localStorage.removeItem('arl_staff_name');
+      localStorage.removeItem('arl_staff_role');
+    }
+    return !!sessionStorage.getItem('arl_auth_token');
   });
 
   React.useEffect(() => {
@@ -303,6 +310,11 @@ function App() {
 
   const handleStaffLogout = () => {
     setIsStaffAuthenticated(false);
+    sessionStorage.removeItem('arl_auth_token');
+    sessionStorage.removeItem('arl_staff_email');
+    sessionStorage.removeItem('arl_staff_name');
+    sessionStorage.removeItem('arl_staff_role');
+    // Also ensure any lingering legacy localStorage keys are cleared
     localStorage.removeItem('arl_auth_token');
     localStorage.removeItem('arl_staff_email');
     localStorage.removeItem('arl_staff_name');
@@ -1904,11 +1916,11 @@ function Login({ onLoginSuccess }) {
         return;
       }
 
-      // Store JWT token
-      localStorage.setItem('arl_auth_token', data.token);
-      localStorage.setItem('arl_staff_email', data.user.email);
-      localStorage.setItem('arl_staff_name', data.user.fullName);
-      localStorage.setItem('arl_staff_role', data.user.role);
+      // Store JWT token in sessionStorage (session terminates when browser/tab closes)
+      sessionStorage.setItem('arl_auth_token', data.token);
+      sessionStorage.setItem('arl_staff_email', data.user.email);
+      sessionStorage.setItem('arl_staff_name', data.user.fullName);
+      sessionStorage.setItem('arl_staff_role', data.user.role);
 
       setIsLoading(false);
       onLoginSuccess(data.user.email);
@@ -2034,7 +2046,7 @@ function AdminSubmissions({ onLogout }) {
   const [selectedSub, setSelectedSub] = useState(null);
   const [replyText, setReplyText] = useState('');
   const [staffSender, setStaffSender] = useState(() => {
-    return localStorage.getItem('arl_staff_name') || 'Support Staff';
+    return sessionStorage.getItem('arl_staff_name') || 'Support Staff';
   });
   const [isSubmittingReply, setIsSubmittingReply] = useState(false);
   const [replyFeedback, setReplyFeedback] = useState(null);
@@ -2051,11 +2063,11 @@ function AdminSubmissions({ onLogout }) {
   });
   const [resetUserId, setResetUserId] = useState(null);
   const [resetPassword, setResetPassword] = useState('');
-  const isAdmin = localStorage.getItem('arl_staff_role') === 'admin';
+  const isAdmin = sessionStorage.getItem('arl_staff_role') === 'admin';
 
-  // Get JWT token from localStorage
+  // Get JWT token from sessionStorage
   const getAuthHeaders = () => {
-    const token = localStorage.getItem('arl_auth_token');
+    const token = sessionStorage.getItem('arl_auth_token');
     if (!token) {
       onLogout();
       return {};
@@ -2098,10 +2110,10 @@ function AdminSubmissions({ onLogout }) {
       const res = await fetch(`${apiBaseUrl}/api/submissions`, { headers });
 
       if (res.status === 401) {
-        localStorage.removeItem('arl_auth_token');
-        localStorage.removeItem('arl_staff_email');
-        localStorage.removeItem('arl_staff_name');
-        localStorage.removeItem('arl_staff_role');
+        sessionStorage.removeItem('arl_auth_token');
+        sessionStorage.removeItem('arl_staff_email');
+        sessionStorage.removeItem('arl_staff_name');
+        sessionStorage.removeItem('arl_staff_role');
         onLogout();
         return;
       }
@@ -2188,7 +2200,7 @@ function AdminSubmissions({ onLogout }) {
       });
 
       if (res.status === 401) {
-        localStorage.removeItem('arl_auth_token');
+        sessionStorage.removeItem('arl_auth_token');
         onLogout();
         return;
       }
@@ -2233,7 +2245,7 @@ function AdminSubmissions({ onLogout }) {
       });
 
       if (res.status === 401) {
-        localStorage.removeItem('arl_auth_token');
+        sessionStorage.removeItem('arl_auth_token');
         onLogout();
         return;
       }
