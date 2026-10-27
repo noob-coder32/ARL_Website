@@ -34,7 +34,8 @@ app.get('/api/health', async (_req, res) => {
     res.json({
       status: 'ok',
       database: 'connected',
-      timestamp: new Date().toISOString()
+      // timestamp: new Date().toISOString()
+      timestamp: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
     });
   } catch (error) {
     res.status(503).json({
