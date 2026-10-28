@@ -8,6 +8,7 @@
 
 # Build output and tool caches
 **/dist/
+server/client-dist/
 **/build/
 **/out/
 **/.vite/

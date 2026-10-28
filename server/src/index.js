@@ -2,12 +2,15 @@ import 'dotenv/config';
 import cors from 'cors';
 import express from 'express';
 import nodemailer from 'nodemailer';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { getPool, sql } from './db.js';
 import { validateSubmission } from './validation.js';
 import { authMiddleware, generateToken, hashPassword, requireRole, verifyPassword } from './auth.js';
 
 const app = express();
 const port = Number(process.env.PORT || 5000);
+const clientBuildPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../client-dist');
 
 const allowedOrigins = [
   process.env.CLIENT_ORIGIN,
@@ -397,6 +400,9 @@ app.post('/api/submissions/:id/reply', authMiddleware, async (req, res) => {
     });
   }
 });
+
+// Serve the Vite production build bundled alongside this server.
+app.use(express.static(clientBuildPath));
 
 app.use((_req, res) => {
   res.status(404).json({ message: 'Route not found.' });

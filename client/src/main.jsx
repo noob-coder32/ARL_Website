@@ -49,7 +49,7 @@ import {
 } from 'lucide-react';
 import './styles.css';
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5000' : '');
 const imageBase = '/images';
 
 const heroPhrases = [

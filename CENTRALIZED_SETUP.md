@@ -7,7 +7,7 @@ The project contains two applications:
 - `client/` - React frontend powered by Vite
 - `server/` - Express API connected to SQL Server
 
-The frontend communicates with the backend through the API URL configured by `VITE_API_BASE_URL`. The backend uses environment variables for database, authentication, email, and listener configuration.
+The frontend communicates with the backend through `VITE_API_BASE_URL`, which can be set to a backend origin prefix (for example, `http://localhost:5000`). During Vite development that localhost origin is the default; in production, leave the variable unset so the browser uses same-origin `/api/...` paths. The backend uses environment variables for database, authentication, email, and listener configuration.
 
 This document describes a generic development setup. Hostnames, IP addresses, credentials, and deployment-specific network details are intentionally omitted.
 
@@ -67,6 +67,8 @@ npm run dev
 
 The frontend uses `VITE_API_BASE_URL` for API requests. For local development, this is normally a localhost API URL. For shared development, configure the URL through the local environment of the development host rather than documenting an internal address here.
 
+In production, the existing Azure workflow builds the client without a `VITE_API_BASE_URL` override, copies the generated Vite output into `server/client-dist/`, and deploys it with the Express application. Express serves that build from `/`; API routes remain under `/api/...`. The server starts with `npm start` from `server/`.
+
 ## Available Frontend Scripts
 
 The available scripts are defined in `client/package.json`, including:
@@ -91,13 +93,13 @@ The migration runner reads its database connection settings from the server envi
 ## Request and Authentication Flow
 
 1. The browser loads the frontend from the configured development or deployment host.
-2. The frontend sends API requests to `VITE_API_BASE_URL`.
+2. The frontend sends API requests to the configured backend origin plus `/api/...`, or directly to same-origin `/api/...` when no base is configured.
 3. Public submissions are validated by the backend and stored in SQL Server.
 4. Staff login uses `POST /api/auth/login`.
 5. Protected administrative requests include a JWT in the `Authorization` header.
 6. The backend verifies the token using `JWT_SECRET` and permits authenticated operations.
 
-The server controls CORS through its configured client origin. CORS configuration should be limited to the intended frontend origins in each environment.
+The server controls CORS through its configured client origin. Same-origin production requests do not require CORS; keep explicitly allowed origins only for development frontends or other external API clients that still need cross-origin access.
 
 ## Operational Guidance
 
