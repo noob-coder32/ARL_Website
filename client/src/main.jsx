@@ -260,6 +260,22 @@ const faqs = [
   }
 ];
 
+const STAFF_SESSION_KEYS = ['arl_auth_token', 'arl_staff_email', 'arl_staff_name', 'arl_staff_role'];
+
+const isTokenUsable = (token) => {
+  if (!token) return false;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return typeof payload.exp === 'number' && payload.exp * 1000 > Date.now();
+  } catch {
+    return false;
+  }
+};
+
+const clearStaffSession = () => {
+  STAFF_SESSION_KEYS.forEach((key) => sessionStorage.removeItem(key));
+};
+
 // ============================================================================
 // MAIN APPLICATION COMPONENT
 // ============================================================================
@@ -270,8 +286,15 @@ function App() {
   const [lightboxImage, setLightboxImage] = useState(null);
   const [prefilledInquiry, setPrefilledInquiry] = useState(null);
   const [isStaffAuthenticated, setIsStaffAuthenticated] = useState(() => {
-    return !!localStorage.getItem('arl_auth_token');
+    const token = sessionStorage.getItem('arl_auth_token');
+    if (isTokenUsable(token)) return true;
+    clearStaffSession();
+    return false;
   });
+
+  React.useEffect(() => {
+    STAFF_SESSION_KEYS.forEach((key) => localStorage.removeItem(key));
+  }, []);
 
   React.useEffect(() => {
     const handleHashChange = () => {
@@ -303,10 +326,7 @@ function App() {
 
   const handleStaffLogout = () => {
     setIsStaffAuthenticated(false);
-    localStorage.removeItem('arl_auth_token');
-    localStorage.removeItem('arl_staff_email');
-    localStorage.removeItem('arl_staff_name');
-    localStorage.removeItem('arl_staff_role');
+    clearStaffSession();
     setActivePage('login');
     window.location.hash = 'login';
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1905,10 +1925,10 @@ function Login({ onLoginSuccess }) {
       }
 
       // Store JWT token
-      localStorage.setItem('arl_auth_token', data.token);
-      localStorage.setItem('arl_staff_email', data.user.email);
-      localStorage.setItem('arl_staff_name', data.user.fullName);
-      localStorage.setItem('arl_staff_role', data.user.role);
+      sessionStorage.setItem('arl_auth_token', data.token);
+      sessionStorage.setItem('arl_staff_email', data.user.email);
+      sessionStorage.setItem('arl_staff_name', data.user.fullName);
+      sessionStorage.setItem('arl_staff_role', data.user.role);
 
       setIsLoading(false);
       onLoginSuccess(data.user.email);
@@ -2034,7 +2054,7 @@ function AdminSubmissions({ onLogout }) {
   const [selectedSub, setSelectedSub] = useState(null);
   const [replyText, setReplyText] = useState('');
   const [staffSender, setStaffSender] = useState(() => {
-    return localStorage.getItem('arl_staff_name') || 'Support Staff';
+    return sessionStorage.getItem('arl_staff_name') || 'Support Staff';
   });
   const [isSubmittingReply, setIsSubmittingReply] = useState(false);
   const [replyFeedback, setReplyFeedback] = useState(null);
@@ -2051,12 +2071,13 @@ function AdminSubmissions({ onLogout }) {
   });
   const [resetUserId, setResetUserId] = useState(null);
   const [resetPassword, setResetPassword] = useState('');
-  const isAdmin = localStorage.getItem('arl_staff_role') === 'admin';
+  const isAdmin = sessionStorage.getItem('arl_staff_role') === 'admin';
 
-  // Get JWT token from localStorage
+  // Get JWT token from sessionStorage
   const getAuthHeaders = () => {
-    const token = localStorage.getItem('arl_auth_token');
-    if (!token) {
+    const token = sessionStorage.getItem('arl_auth_token');
+    if (!isTokenUsable(token)) {
+      clearStaffSession();
       onLogout();
       return {};
     }
@@ -2098,10 +2119,7 @@ function AdminSubmissions({ onLogout }) {
       const res = await fetch(`${apiBaseUrl}/api/submissions`, { headers });
 
       if (res.status === 401) {
-        localStorage.removeItem('arl_auth_token');
-        localStorage.removeItem('arl_staff_email');
-        localStorage.removeItem('arl_staff_name');
-        localStorage.removeItem('arl_staff_role');
+        clearStaffSession();
         onLogout();
         return;
       }
@@ -2188,7 +2206,7 @@ function AdminSubmissions({ onLogout }) {
       });
 
       if (res.status === 401) {
-        localStorage.removeItem('arl_auth_token');
+        clearStaffSession();
         onLogout();
         return;
       }
@@ -2233,7 +2251,7 @@ function AdminSubmissions({ onLogout }) {
       });
 
       if (res.status === 401) {
-        localStorage.removeItem('arl_auth_token');
+        clearStaffSession();
         onLogout();
         return;
       }
