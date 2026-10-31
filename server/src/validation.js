@@ -1,4 +1,4 @@
-const allowedTypes = new Set(['enquiry', 'request', 'complaint', 'feedback']);
+const allowedTypes = new Set(['enquiry', 'request', 'complaint', 'feedback', 'dealership']);
 const phonePattern = /^[0-9+\-\s()]{7,20}$/;
 
 const normalizeText = (value) => String(value ?? '').trim();
@@ -24,7 +24,7 @@ export const validateSubmission = (body) => {
     errors.push('Phone must contain only numbers, spaces, and + - ( ) characters.');
   }
   if (!allowedTypes.has(submission.submissionType)) {
-    errors.push('Submission type must be enquiry, request, complaint, or feedback.');
+    errors.push('Submission type must be enquiry, request, complaint, feedback, or dealership.');
   }
   if (!submission.subject) errors.push('Subject is required.');
   if (!submission.message) errors.push('Message is required.');
