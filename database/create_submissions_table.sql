@@ -11,7 +11,7 @@ BEGIN
         Status NVARCHAR(30) NOT NULL CONSTRAINT DF_ClientSubmissions_Status DEFAULT ('new'),
         CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_ClientSubmissions_CreatedAt DEFAULT (SYSDATETIME()),
         CONSTRAINT CK_ClientSubmissions_SubmissionType CHECK (
-            SubmissionType IN ('enquiry', 'request', 'complaint', 'feedback')
+            SubmissionType IN ('enquiry', 'request', 'complaint', 'feedback', 'dealership')
         )
     );
 END;
