@@ -1684,10 +1684,12 @@ function Contact({ prefilledInquiry }) {
         message: ''
       });
     } catch (error) {
-      // Graceful fallback for local offline testing
+      console.error('Inquiry submission failed:', error);
       setStatus({
-        type: 'success',
-        message: 'Inquiry registered successfully! (Recorded for Assam Roofing Limited sales desk).'
+        type: 'error',
+        message: error instanceof TypeError
+          ? 'We could not reach the server. Please check your connection and try again.'
+          : (error.message || 'We could not send your inquiry. Please try again or call our sales desk.')
       });
     }
   };
