@@ -2658,6 +2658,7 @@ function AdminSubmissions({ onLogout }) {
                         year: 'numeric',
                         hour: '2-digit',
                         minute: '2-digit',
+                        timeZone: 'Asia/Kolkata',
                       })
                       : 'Recently';
 
@@ -2825,7 +2826,7 @@ function AdminSubmissions({ onLogout }) {
                 <div>
                   <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 600 }}>SUBMITTED AT</div>
                   <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
-                    {selectedSub.CreatedAt ? new Date(selectedSub.CreatedAt).toLocaleString('en-IN') : 'Recent'}
+                    {selectedSub.CreatedAt ? new Date(selectedSub.CreatedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'Recent'}
                   </div>
                 </div>
               </div>

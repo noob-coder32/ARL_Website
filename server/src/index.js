@@ -241,7 +241,7 @@ app.get('/api/submissions', authMiddleware, async (_req, res) => {
         Subject,
         Message,
         Status,
-        CONVERT(VARCHAR(27), CreatedAt, 126) AS CreatedAt
+        CONCAT(CONVERT(VARCHAR(23), CreatedAt, 126), 'Z') AS CreatedAt
       FROM dbo.ClientSubmissions
       ORDER BY CreatedAt DESC;
     `);
