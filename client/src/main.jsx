@@ -2574,7 +2574,7 @@ function AdminSubmissions({ onLogout }) {
             >
               <option value="All">All Categories</option>
               <option value="enquiry">General Enquiry</option>
-              <option value="quote">Quote Request</option>
+              <option value="request">Quote Request</option>
               <option value="dealership">Dealership</option>
               <option value="complaint">Complaint</option>
               <option value="feedback">Feedback</option>
