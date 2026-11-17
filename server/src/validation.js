@@ -101,7 +101,7 @@ export const validateSubmission = (body = {}) => {
   else if (subject.length > LIMITS.subject) addError('subject', `Subject must be at most ${LIMITS.subject} characters.`);
 
   if (!message) addError('message', 'Message is required.');
-  else if (message.length > LIMITS.message) addError('message', `Message must be at most ${LIMITS.message} characters.`);
+  
 
   return {
     isValid: errors.length === 0,

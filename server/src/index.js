@@ -99,7 +99,7 @@ app.post('/api/auth/verify', authMiddleware, (req, res) => {
 });
 
 const validStaffRoles = ['admin', 'manager', 'staff'];
-const MIN_PASSWORD_LENGTH = 8;
+const MIN_PASSWORD_LENGTH = 4;
 
 app.get('/api/auth/users', authMiddleware, requireRole('admin'), async (_req, res) => {
   try {

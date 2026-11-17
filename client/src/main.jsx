@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { LIMITS, validateEmail, validatePhone } from './validation.js';
 import ReactDOM from 'react-dom/client';
 import {
   AlertCircle,
@@ -1622,6 +1623,7 @@ function Contact({ prefilledInquiry }) {
 
   const [status, setStatus] = useState({ type: 'idle', message: '' });
   const [toast, setToast] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   React.useEffect(() => {
     if (status.type !== 'success' || !status.message) {
@@ -1656,6 +1658,13 @@ function Contact({ prefilledInquiry }) {
 
   const submitForm = async (e) => {
     e.preventDefault();
+    const nextErrors = {};
+    const emailResult = validateEmail(form.email);
+    if (!emailResult.ok) nextErrors.email = emailResult.error;
+    const phoneResult = validatePhone(form.phone);
+    if (!phoneResult.ok) nextErrors.phone = phoneResult.error;
+    setFieldErrors(nextErrors);
+    if (Object.keys(nextErrors).length) return;
     setStatus({ type: 'loading', message: 'Sending your inquiry to Assam Roofing team...' });
 
     try {
@@ -1667,6 +1676,7 @@ function Contact({ prefilledInquiry }) {
       const data = await response.json();
 
       if (!response.ok) {
+        if (data.fieldErrors) setFieldErrors(data.fieldErrors);
         throw new Error(data.errors?.join(' ') || data.message || 'Unable to submit your inquiry.');
       }
 
@@ -1741,12 +1751,21 @@ function Contact({ prefilledInquiry }) {
                   <input
                     name="email"
                     type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    maxLength={LIMITS.email}
                     value={form.email}
                     onChange={updateField}
+                    onBlur={() => {
+                      const r = validateEmail(form.email);
+                      setFieldErrors((f) => ({ ...f, email: r.ok ? undefined : r.error }));
+                    }}
+                    aria-invalid={!!fieldErrors.email}
                     className="form-control"
                     placeholder="name@example.com"
                     required
                   />
+                  {fieldErrors.email && <small className="field-error">{fieldErrors.email}</small>}
                 </div>
               </div>
 
@@ -1756,11 +1775,20 @@ function Contact({ prefilledInquiry }) {
                   <input
                     name="phone"
                     type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    maxLength={LIMITS.phone}
                     value={form.phone}
                     onChange={updateField}
+                    onBlur={() => {
+                      const r = validatePhone(form.phone);
+                      setFieldErrors((f) => ({ ...f, phone: r.ok ? undefined : r.error }));
+                    }}
+                    aria-invalid={!!fieldErrors.phone}
                     className="form-control"
                     placeholder="+91 98765 43210"
                   />
+                  {fieldErrors.phone && <small className="field-error">{fieldErrors.phone}</small>}
                 </div>
                 <div className="form-group">
                   <label>Inquiry Category *</label>
