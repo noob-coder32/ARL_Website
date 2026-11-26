@@ -2013,3 +2013,6 @@ h1, h2, h3, h4, h5, h6 {
 .spinning {
   animation: spin 1s linear infinite;
 }
+
+.field-error { color: var(--error-text); font-size: 0.8rem; }
+.form-control[aria-invalid="true"] { border-color: #dc2626; }

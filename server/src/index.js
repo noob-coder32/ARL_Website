@@ -5,7 +5,7 @@ import nodemailer from 'nodemailer';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getPool, sql } from './db.js';
-import { validateSubmission } from './validation.js';
+import { validateEmail, validateSubmission } from './validation.js';
 import { authMiddleware, generateToken, hashPassword, requireRole, verifyPassword } from './auth.js';
 
 const app = express();
@@ -80,7 +80,7 @@ app.post('/api/auth/login', async (req, res) => {
       id: user.Id,
       email: user.Email,
       fullName: user.FullName,
-      role: user.Role,    
+      role: user.Role,
     };
 
     return res.json({
@@ -99,6 +99,7 @@ app.post('/api/auth/verify', authMiddleware, (req, res) => {
 });
 
 const validStaffRoles = ['admin', 'manager', 'staff'];
+const MIN_PASSWORD_LENGTH = 4;
 
 app.get('/api/auth/users', authMiddleware, requireRole('admin'), async (_req, res) => {
   try {
@@ -117,16 +118,24 @@ app.get('/api/auth/users', authMiddleware, requireRole('admin'), async (_req, re
 });
 
 app.post('/api/auth/users', authMiddleware, requireRole('admin'), async (req, res) => {
-  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const emailCheck = validateEmail(req.body?.email);
   const fullName = typeof req.body?.fullName === 'string' ? req.body.fullName.trim() : '';
   const department = typeof req.body?.department === 'string' ? req.body.department.trim() : '';
   const role = typeof req.body?.role === 'string' ? req.body.role.trim().toLowerCase() : 'staff';
   const password = typeof req.body?.password === 'string' ? req.body.password : '';
 
-  if (!email || !fullName || !password) {
-    return res.status(400).json({ message: 'Email, full name, and password are required.' });
-  }
+  if (!emailCheck.ok) return res.status(400).json({ message: emailCheck.error });
+  const email = emailCheck.email;
 
+  if (!fullName || !password) {
+    return res.status(400).json({ message: 'Full name and password are required.' });
+  }
+  if (fullName.length > 120 || department.length > 100) {
+    return res.status(400).json({ message: 'Full name or department is too long.' });
+  }
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return res.status(400).json({ message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` });
+  }
   if (!validStaffRoles.includes(role)) {
     return res.status(400).json({ message: 'Role must be admin, manager, or staff.' });
   }
@@ -169,6 +178,10 @@ app.patch('/api/auth/users/:id/password', authMiddleware, requireRole('admin'), 
     return res.status(400).json({ message: 'A valid staff user ID is required.' });
   }
 
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return res.status(400).json({ message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` });
+  }
+
   try {
     const passwordHash = await hashPassword(password);
     const pool = await getPool();
@@ -193,10 +206,11 @@ app.patch('/api/auth/users/:id/password', authMiddleware, requireRole('admin'), 
 });
 
 app.post('/api/submissions', async (req, res) => {
-  const { isValid, errors, submission } = validateSubmission(req.body);
+
+  const { isValid, errors, fieldErrors, submission } = validateSubmission(req.body);
 
   if (!isValid) {
-    return res.status(400).json({ message: 'Please correct the form errors.', errors });
+    return res.status(400).json({ message: 'Please correct the form errors.', errors, fieldErrors });
   }
 
   try {
@@ -294,7 +308,7 @@ app.patch('/api/submissions/:id/status', authMiddleware, async (req, res) => {
 
 app.post('/api/submissions/:id/reply', authMiddleware, async (req, res) => {
   const { id } = req.params;
-  const { replyText, staffName, recipientEmail, subject } = req.body;
+  const { replyText, staffName } = req.body;
 
   if (!replyText || !replyText.trim()) {
     return res.status(400).json({ message: 'Reply message cannot be empty.' });
@@ -303,22 +317,19 @@ app.post('/api/submissions/:id/reply', authMiddleware, async (req, res) => {
   try {
     const pool = await getPool();
 
-    let targetEmail = recipientEmail;
-    let targetSubject = subject;
+    const subResult = await pool.request()
+      .input('Id', sql.Int, Number(id))
+      .query('SELECT Email, Subject FROM dbo.ClientSubmissions WHERE Id = @Id');
 
-    if (!targetEmail) {
-      const subResult = await pool.request()
-        .input('Id', sql.Int, Number(id))
-        .query(`SELECT Email, Subject FROM dbo.ClientSubmissions WHERE Id = @Id`);
-
-      if (subResult.recordset.length === 0) {
-        return res.status(404).json({ message: 'Submission not found.' });
-      }
-      targetEmail = subResult.recordset[0].Email;
-      targetSubject = subResult.recordset[0].Subject;
+    if (subResult.recordset.length === 0) {
+      return res.status(404).json({ message: 'Submission not found.' });
     }
 
+    const targetEmail = subResult.recordset[0].Email;
+    const targetSubject = subResult.recordset[0].Subject;
+
     let emailSent = false;
+
     let emailError = null;
 
     if (process.env.SMTP_USER && process.env.SMTP_PASS) {
